@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="ConvexHull:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/ConvexHull_jar</output-path>
+    <root id="archive" name="ConvexHull.jar">
+      <element id="module-output" name="ConvexHull" />
+    </root>
+  </artifact>
+</component>

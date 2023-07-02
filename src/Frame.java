@@ -116,6 +116,11 @@ public class Frame extends JPanel implements ChangeListener, ActionListener {
                     hull.get(i).x + radius/2, hull.get(i).y + radius/2
                 );
             }
+
+            for (Point p: hull) {
+                g.setColor(new Color(0, 255, 0));
+                g.fillOval(p.x, p.y, radius, radius);
+            }
         }
     }
 
