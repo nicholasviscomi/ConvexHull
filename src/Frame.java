@@ -1,6 +1,7 @@
 import Algorithms.JarvisMarch;
 
 import javax.swing.*;
+import javax.swing.Timer;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import java.awt.*;
@@ -10,6 +11,7 @@ import java.util.*;
 
 public class Frame extends JPanel implements ChangeListener, ActionListener {
     JFrame frame;
+    private Graphics2D g2d;
     JSlider n_points_slider;
     JButton solve, clear;
 
@@ -19,6 +21,11 @@ public class Frame extends JPanel implements ChangeListener, ActionListener {
     ArrayList<Point> points;
     int n_points = 25;
     ArrayList<Point> hull;
+    ArrayList<ArrayList<Point>> animations;
+    ArrayList<Point> flat_animations;
+    Timer anim_timer;
+    int anim_index = 0;
+    boolean should_animate = false;
     public Frame() {
         setLayout(null);
         setFocusable(true);
@@ -79,6 +86,10 @@ public class Frame extends JPanel implements ChangeListener, ActionListener {
 
         points = set_points();
         frame.setVisible(true);
+
+//        point_timer = new Timer(100, this);
+//        guess_timer = new Timer(100, this);
+        anim_timer = new Timer(300, this);
     }
 
     private ArrayList<Point> set_points() {
@@ -104,26 +115,73 @@ public class Frame extends JPanel implements ChangeListener, ActionListener {
     @Override
     public void paintComponent(Graphics g) {
         super.paintComponent(g);
+
+        g2d = (Graphics2D) g;
         int radius = 10;
         if (points != null) {
             for (Point p : points) {
-                g.fillOval(p.x, p.y, radius, radius);
+                g2d.fillOval(p.x, p.y, radius, radius);
             }
         }
 
-        if (hull != null && hull.size() > 1) {
-            for (int i = 1; i < hull.size(); i++) {
-                g.drawLine(
-                    hull.get(i - 1).x + radius/2, hull.get(i - 1).y + radius/2,
-                    hull.get(i).x + radius/2, hull.get(i).y + radius/2
-                );
-            }
+        if (!should_animate) {
+            if (hull != null && hull.size() > 1) {
+                for (int i = 1; i < hull.size(); i++) {
+                    g2d.setColor(Color.BLACK);
+                    g2d.setStroke(new BasicStroke(3));
+                    g2d.drawLine(
+                            hull.get(i - 1).x + radius / 2, hull.get(i - 1).y + radius / 2,
+                            hull.get(i).x + radius / 2, hull.get(i).y + radius / 2
+                    );
+                }
 
-            for (Point p: hull) {
-                g.setColor(new Color(0, 255, 0));
-                g.fillOval(p.x, p.y, radius, radius);
+                for (Point p : hull) {
+                    g2d.setColor(Color.GREEN);
+                    g2d.fillOval(p.x, p.y, radius, radius);
+                }
             }
         }
+
+        if (should_animate) {
+            Point curr = null;
+            Point prev = null;
+            for (int i = 0; i < anim_index; i++) {
+                Point p = flat_animations.get(i);
+                if (i == 0) curr = p;
+
+
+                // can't only check if p is a point on the hull
+                // rather, must check if p is the NEXT point on the hull, not just any point
+                if (p.equals(
+                        hull.get(hull.indexOf(prev) + 1)
+                )) {
+                    curr = p;
+                    g2d.setColor(Color.RED);
+                    g2d.fillOval(p.x, p.y, radius, radius);
+
+                    if (prev != null) {
+                        g2d.setStroke(new BasicStroke(3));
+                        g2d.setColor(Color.BLACK);
+                        g2d.drawLine(
+                                prev.x + radius / 2, prev.y + radius / 2,
+                                curr.x + radius / 2, curr.y + radius / 2
+                        );
+                    }
+                    prev = curr;
+                } else {
+                    // drawing the guessing lines
+                    g2d.setStroke(new BasicStroke(1));
+                    g2d.setColor(Color.BLACK);
+                    g2d.drawLine(
+                            curr.x + radius / 2, curr.y + radius / 2,
+                            p.x + radius / 2, p.y + radius / 2
+                    );
+                }
+            }
+        }
+
+
+
     }
 
     @Override
@@ -140,12 +198,42 @@ public class Frame extends JPanel implements ChangeListener, ActionListener {
     @Override
     public void actionPerformed(ActionEvent e) {
         if (e.getSource() == solve) {
-            hull = JarvisMarch.convex_hull(points);
+            animations = JarvisMarch.convex_hull(points);
+            flat_animations = new ArrayList<>();
+
+            hull = new ArrayList<>();
+            for (ArrayList<Point> row : animations) {
+                hull.add(row.get(0));
+                flat_animations.addAll(row);
+            }
+            hull.add(hull.get(0));
+
+            anim_index = 0;
+            should_animate = true;
+//            point_timer.start();
+//            guess_timer.start();
+            anim_timer.start();
             repaint();
         }
 
         if (e.getSource() == clear) {
             hull = null;
+            should_animate = false;
+
+//            point_timer.stop();
+//            guess_timer.stop();
+            anim_timer.stop();
+            repaint();
+        }
+
+        if (e.getSource() == anim_timer) {
+            anim_index += 1;
+
+            if (anim_index >= flat_animations.size() - 1) {
+                anim_timer.stop();
+                should_animate = false;
+            }
+
             repaint();
         }
     }
