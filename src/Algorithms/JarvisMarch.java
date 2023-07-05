@@ -7,6 +7,7 @@ import java.util.Map;
 
 public class JarvisMarch {
     private static int orientation(Point curr, Point test, Point best_guess) {
+        // https://algs4.cs.princeton.edu/91primitives/
         int val = (test.y - curr.y) * (best_guess.x - test.x) -
                 (test.x - curr.x) * (best_guess.y - test.y);
 
