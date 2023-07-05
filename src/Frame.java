@@ -95,10 +95,15 @@ public class Frame extends JPanel implements ChangeListener, ActionListener {
     private ArrayList<Point> set_points() {
         ArrayList<Point> all_points = new ArrayList<>();
 
-        Random rand = new Random();
-        for (int x = 100; x < 600; x += rand.nextInt(30) + 10) {
-            for (int y = 50; y < 550; y += rand.nextInt(30) + 10) {
-                all_points.add(new Point(x, y));
+        for (double theta = 0; theta < Math.PI * 2; theta += (Math.PI*2)/100) {
+            for (int y = -250; y < 250; y += 10) {
+                for (int x = -250; x < 250; x += 10) {
+                    all_points.add(
+                        new Point(
+                            (int) (width/2 + x * Math.cos(theta)), (int) (height/2 + y * Math.sin(theta)) - 50
+                        )
+                    );
+                }
             }
         }
 
