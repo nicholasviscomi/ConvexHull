@@ -1,4 +1,5 @@
 import Algorithms.JarvisMarch;
+import Algorithms.QuickHull;
 
 import javax.swing.*;
 import javax.swing.Timer;
@@ -13,19 +14,18 @@ public class Frame extends JPanel implements ChangeListener, ActionListener {
     JFrame frame;
     private Graphics2D g2d;
     JSlider n_points_slider;
-    JButton solve, clear;
+    JButton clear, jm_solve, quick_solve;
 
     int width = 700, height = 700;
 
-
-    ArrayList<Point> points;
+    ArrayList<Point> points = null;
     int n_points = 25;
     ArrayList<Point> hull;
     ArrayList<ArrayList<Point>> animations;
     ArrayList<Point> flat_animations;
     Timer anim_timer;
     int anim_index = 0;
-    boolean should_animate = false;
+    boolean should_animate_jm = false, should_animate_qh = false;
 
     public static void main(String[] args) {
         new Frame();
@@ -58,26 +58,36 @@ public class Frame extends JPanel implements ChangeListener, ActionListener {
         n_points_slider.addChangeListener(this);
         n_points_slider.setVisible(true);
 
-        solve = new JButton();
-        solve = new JButton();
-        solve.setText("Find Hull");
-        solve.setFont(new Font(Font.SERIF, Font.PLAIN, 12));
-        d = solve.getPreferredSize();
-        solve.setBounds(
+        jm_solve = new JButton();
+        jm_solve.setText("Jarvis March");
+        jm_solve.setFont(new Font(Font.SERIF, Font.PLAIN, 12));
+        d = jm_solve.getPreferredSize();
+        jm_solve.setBounds(
                 n_points_slider.getX() + n_points_slider.getWidth() + 10,
-                n_points_slider.getY() + n_points_slider.getHeight() / 2 - d.height/2,
+                n_points_slider.getY(),
                 d.width, d.height
         );
-        solve.addActionListener(this);
-        solve.setVisible(true);
+        jm_solve.addActionListener(this);
+        jm_solve.setVisible(true);
 
-        clear = new JButton();
+        quick_solve = new JButton();
+        quick_solve.setText("QuickHull");
+        quick_solve.setFont(new Font(Font.SERIF, Font.PLAIN, 12));
+        d = quick_solve.getPreferredSize();
+        quick_solve.setBounds(
+                jm_solve.getX(),
+                jm_solve.getY() + jm_solve.getHeight(),
+                d.width, d.height
+        );
+        quick_solve.addActionListener(this);
+        quick_solve.setVisible(true);
+
         clear = new JButton();
         clear.setText("Clear Hull");
         clear.setFont(new Font(Font.SERIF, Font.PLAIN, 12));
         d = clear.getPreferredSize();
         clear.setBounds(
-                solve.getX() + solve.getWidth() + 10,
+                jm_solve.getX() + jm_solve.getWidth() + 10,
                 n_points_slider.getY() + n_points_slider.getHeight() / 2 - d.height/2,
                 d.width, d.height
         );
@@ -85,7 +95,8 @@ public class Frame extends JPanel implements ChangeListener, ActionListener {
         clear.setVisible(true);
 
         add(n_points_slider);
-        add(solve);
+        add(jm_solve);
+        add(quick_solve);
         add(clear);
 
         points = set_points();
@@ -119,83 +130,6 @@ public class Frame extends JPanel implements ChangeListener, ActionListener {
         return res;
     }
 
-    private int are_intersecting(
-            float v1x1, float v1y1, float v1x2, float v1y2,
-            float v2x1, float v2y1, float v2x2, float v2y2
-    ) {
-        float d1, d2;
-        float a1, a2, b1, b2, c1, c2;
-
-        // Convert vector 1 to a line (line 1) of infinite length.
-        // We want the line in linear equation standard form: A*x + B*y + C = 0
-        a1 = v1y2 - v1y1;
-        b1 = v1x1 - v1x2;
-        c1 = (v1x2 * v1y1) - (v1x1 * v1y2);
-
-        // Every point (x,y), that solves the equation above, is on the line,
-        // every point that does not solve it, is not. The equation will have a
-        // positive result if it is on one side of the line and a negative one
-        // if is on the other side of it. We insert (x1,y1) and (x2,y2) of vector
-        // 2 into the equation above.
-        d1 = (a1 * v2x1) + (b1 * v2y1) + c1;
-        d2 = (a1 * v2x2) + (b1 * v2y2) + c1;
-
-        // If d1 and d2 both have the same sign, they are both on the same side
-        // of our line 1 and in that case no intersection is possible. Careful,
-        // 0 is a special case, that's why we don't test ">=" and "<=",
-        // but "<" and ">".
-        if (d1 >= 0 && d2 >= 0) return 0;
-        if (d1 <= 0 && d2 <= 0) return 0;
-
-        // The fact that vector 2 intersected the infinite line 1 above doesn't
-        // mean it also intersects the vector 1. Vector 1 is only a subset of that
-        // infinite line 1, so it may have intersected that line before the vector
-        // started or after it ended. To know for sure, we have to repeat the
-        // the same test the other way round. We start by calculating the
-        // infinite line 2 in linear equation standard form.
-        a2 = v2y2 - v2y1;
-        b2 = v2x1 - v2x2;
-        c2 = (v2x2 * v2y1) - (v2x1 * v2y2);
-
-        // Calculate d1 and d2 again, this time using points of vector 1.
-        d1 = (a2 * v1x1) + (b2 * v1y1) + c2;
-        d2 = (a2 * v1x2) + (b2 * v1y2) + c2;
-
-        // Again, if both have the same sign (and neither one is 0),
-        // no intersection is possible.
-        if (d1 > 0 && d2 > 0) return 0;
-        if (d1 < 0 && d2 < 0) return 0;
-
-        // If we get here, only two possibilities are left. Either the two
-        // vectors intersect in exactly one point or they are collinear, which
-        // means they intersect in any number of points from zero to infinite.
-        if ((a1 * b2) - (a2 * b1) == 0.0f) return 2;
-
-        // If they are not collinear, they must intersect in exactly one point.
-        return 1;
-    }
-
-    private boolean point_in_polygon(Point test) {
-        if (hull == null) return false;
-
-        int n_hits = 0;
-        for (int i = 1; i < hull.size() - 1; i++) {
-            Point p1 = hull.get(i - 1), p2 = hull.get(i);
-            p1 = new Point(p1.x + radius/2, p1.y + radius/2);
-            p2 = new Point(p2.x + radius/2, p2.y + radius/2);
-
-            if (are_intersecting(
-                    p1.x, p1.y, p2.x, p2.y,
-                    test.x, test.y, width, test.y
-            ) == 1) {
-                n_hits++;
-            }
-
-        }
-
-        return n_hits == 1;
-    }
-
     int radius = 10;
     @Override
     public void paintComponent(Graphics g) {
@@ -211,7 +145,7 @@ public class Frame extends JPanel implements ChangeListener, ActionListener {
             }
         }
 
-        if (!should_animate) {
+        if (!should_animate_jm && !should_animate_qh) {
 //            for (int y = 0; y < height; y++) {
 //                for (int x = 0; x < width; x++) {
 //                    if (point_in_polygon(new Point(x, y))) {
@@ -234,10 +168,11 @@ public class Frame extends JPanel implements ChangeListener, ActionListener {
                 for (int i = 1; i < hull.size(); i++) {
                     g2d.setColor(Color.BLACK);
                     g2d.setStroke(new BasicStroke(3));
-                    g2d.drawLine(
-                            hull.get(i - 1).x + radius / 2, hull.get(i - 1).y + radius / 2,
-                            hull.get(i).x + radius / 2, hull.get(i).y + radius / 2
-                    );
+                    draw_line(hull.get(i -1), hull.get(i));
+//                    g2d.drawLine(
+//                            hull.get(i - 1).x + radius / 2, hull.get(i - 1).y + radius / 2,
+//                            hull.get(i).x + radius / 2, hull.get(i).y + radius / 2
+//                    );
                 }
 
                 for (Point p : hull) {
@@ -247,7 +182,7 @@ public class Frame extends JPanel implements ChangeListener, ActionListener {
             }
         }
 
-        if (should_animate) {
+        if (should_animate_jm && !should_animate_qh) {
             Point curr = null;
             Point prev = null;
             for (int i = 0; i < anim_index; i++) {
@@ -268,25 +203,58 @@ public class Frame extends JPanel implements ChangeListener, ActionListener {
                     if (prev != null) {
                         g2d.setStroke(new BasicStroke(3));
                         g2d.setColor(Color.BLACK);
-                        g2d.drawLine(
-                                prev.x + radius / 2, prev.y + radius / 2,
-                                curr.x + radius / 2, curr.y + radius / 2
-                        );
+                        draw_line(prev, curr);
+//                        g2d.drawLine(
+//                                prev.x + radius / 2, prev.y + radius / 2,
+//                                curr.x + radius / 2, curr.y + radius / 2
+//                        );
                     }
                     prev = curr;
                 } else {
                     // drawing the guessing lines
                     g2d.setStroke(new BasicStroke(1));
                     g2d.setColor(Color.BLACK);
-                    g2d.drawLine(
-                            curr.x + radius / 2, curr.y + radius / 2,
-                            p.x + radius / 2, p.y + radius / 2
-                    );
+                    draw_line(curr, p);
+//                    g2d.drawLine(
+//                            curr.x + radius / 2, curr.y + radius / 2,
+//                            p.x + radius / 2, p.y + radius / 2
+//                    );
                 }
             }
         }
 
+        if (should_animate_qh && !should_animate_jm) {
+            assert points != null;
+            Point leftmost = new Point(10000, 0);
+            Point rightmost = new Point(0, 0);
+            for (Point p: points) {
+                if (p.x > rightmost.x)  rightmost = p;
+                if (p.x < leftmost.x)   leftmost = p;
+            }
+            g2d.setColor(Color.BLACK); g2d.setStroke(new BasicStroke(1));
+            draw_line(leftmost, rightmost);
+
+            ArrayList<ArrayList<Point>> split_points = QuickHull.split_points(points, leftmost, rightmost);
+
+            ArrayList<Point> above = split_points.get(0);
+            for (Point p: above) {
+                //points above line
+                g2d.setColor(Color.RED);
+                g2d.fillOval(p.x, p.y, radius, radius);
+            }
+
+
+        }
+
         g2d.setStroke(new BasicStroke(1));
+    }
+
+    private void draw_line(Point a, Point b) {
+        g2d.setColor(Color.BLACK);
+        g2d.drawLine(
+                a.x + radius/2, a.y + radius/2,
+                b.x + radius/2, b.y + radius/2
+        );
     }
 
     @Override
@@ -299,10 +267,9 @@ public class Frame extends JPanel implements ChangeListener, ActionListener {
         }
     }
 
-
     @Override
     public void actionPerformed(ActionEvent e) {
-        if (e.getSource() == solve) {
+        if (e.getSource() == jm_solve) {
             animations = JarvisMarch.convex_hull(points);
             flat_animations = new ArrayList<>();
 
@@ -314,19 +281,24 @@ public class Frame extends JPanel implements ChangeListener, ActionListener {
             hull.add(hull.get(0));
 
             anim_index = 0;
-            should_animate = true;
-//            point_timer.start();
-//            guess_timer.start();
+            should_animate_jm = true;
+            should_animate_qh = false;
+
             anim_timer.start();
+            repaint();
+        }
+
+        if (e.getSource() == quick_solve) {
+            should_animate_qh = true;
+            should_animate_jm = false;
             repaint();
         }
 
         if (e.getSource() == clear) {
             hull = null;
-            should_animate = false;
+            should_animate_jm = false;
+            should_animate_qh = false;
 
-//            point_timer.stop();
-//            guess_timer.stop();
             anim_timer.stop();
             repaint();
         }
@@ -336,7 +308,7 @@ public class Frame extends JPanel implements ChangeListener, ActionListener {
 
             if (anim_index >= flat_animations.size() - 1) {
                 anim_timer.stop();
-                should_animate = false;
+                should_animate_jm = false;
             }
 
             repaint();
