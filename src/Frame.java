@@ -44,7 +44,7 @@ public class Frame extends JPanel implements ChangeListener, ActionListener {
         frame.setSize(width, height);
         frame.setLocationRelativeTo(null);
 
-        n_points_slider = new JSlider(JSlider.HORIZONTAL, 0, 50, 25);
+        n_points_slider = new JSlider(JSlider.HORIZONTAL, 10, 50, 30);
         n_points_slider.setFont(new Font(Font.SERIF, Font.PLAIN, 13));
         n_points_slider.setMinorTickSpacing(5);
         n_points_slider.setMajorTickSpacing(10);
@@ -236,13 +236,113 @@ public class Frame extends JPanel implements ChangeListener, ActionListener {
 
             ArrayList<ArrayList<Point>> split_points = QuickHull.split_points(points, leftmost, rightmost);
 
-            ArrayList<Point> above = split_points.get(0);
-            for (Point p: above) {
-                //points above line
-                g2d.setColor(Color.RED);
-                g2d.fillOval(p.x, p.y, radius, radius);
-            }
+//            double m = ((double) (rightmost.y - leftmost.y)) / ((double) (rightmost.x - leftmost.x));
+//            Point midpoint = new Point((leftmost.x + rightmost.x)/2, (leftmost.y + rightmost.y)/2);
+//            double b = -m * midpoint.x + midpoint.y;
+//
+//            ArrayList<Point> above = split_points.get(0);
+//            Point extreme = null; double dist = 0;
+//            for (Point p: above) {
+//                //points above line
+//                g2d.setColor(Color.RED);
+//                g2d.fillOval(p.x, p.y, radius, radius);
+//
+//                /*
+//                y = mx - mx1 + y1
+//                A = -m
+//                B = 1
+//                C = -b
+//                 */
+//                double d = Math.abs(-m * p.x + p.y - b)/Math.sqrt((-m)*(-m) + b*b);
+//                if (extreme == null || d > dist) {
+//                    extreme = p;
+//                    dist = d;
+//                }
+//
+//            }
+//            assert extreme != null;
+//            g2d.setColor(Color.BLACK);
+//            g2d.fillOval(extreme.x, extreme.y, radius, radius);
+//            draw_line(leftmost, extreme); //draw_line(extreme, rightmost);
+//            //---------------------------------------------------------------------------------------------------
+//
+//            rightmost = extreme;
+//            m = ((double) (rightmost.y - leftmost.y)) / ((double) (rightmost.x - leftmost.x));
+//            midpoint = new Point((leftmost.x + rightmost.x)/2, (leftmost.y + rightmost.y)/2);
+//            b = -m * midpoint.x + midpoint.y;
+//
+//            split_points = QuickHull.split_points(above, leftmost, rightmost);
+//            above = split_points.get(0);
+//            extreme = null; dist = 0;
+//            for (Point p: above) {
+//                //points above line
+//                g2d.setColor(Color.green);
+//                g2d.fillOval(p.x, p.y, radius, radius);
+//
+//                /*
+//                y = mx - mx1 + y1
+//                A = -m
+//                B = 1
+//                C = -b
+//                 */
+//                double d = Math.abs(-m * p.x + p.y - b)/Math.sqrt((-m)*(-m) + b*b);
+//                if (extreme == null || d > dist) {
+//                    extreme = p;
+//                    dist = d;
+//                }
+//
+//            }
+//            assert extreme != null;
+//            g2d.setColor(Color.BLACK);
+//            g2d.fillOval(extreme.x, extreme.y, radius, radius);
+//            draw_line(leftmost, extreme); draw_line(extreme, rightmost);
+            Point extreme;
+            do {
+                double m = ((double) (rightmost.y - leftmost.y)) / ((double) (rightmost.x - leftmost.x));
+                Point midpoint = new Point((leftmost.x + rightmost.x)/2, (leftmost.y + rightmost.y)/2);
+                double b = -m * midpoint.x + midpoint.y;
 
+                ArrayList<Point> above = split_points.get(0);
+                extreme = null; double dist = 0;
+                for (Point p: above) {
+                    //points above line
+                    g2d.setColor(Color.RED);
+                    g2d.fillOval(p.x, p.y, radius, radius);
+
+                    double d = Math.abs(-m * p.x + p.y - b)/Math.sqrt((-m)*(-m) + b*b);
+                    if (d > dist) {
+                        extreme = p;
+                        dist = d;
+                    }
+
+                }
+                if (extreme != null) {
+                    g2d.setColor(Color.BLACK);
+                    g2d.fillOval(extreme.x, extreme.y, radius, radius);
+                    draw_line(leftmost, extreme); //draw_line(extreme, rightmost);
+
+                    rightmost = extreme;
+                    split_points = QuickHull.split_points(above, leftmost, rightmost);
+                }
+            } while (extreme != null);
+
+//            ArrayList<Point> below = split_points.get(1);
+//            extreme = null;
+//            for (Point p: below) {
+//                //points above line
+//                g2d.setColor(Color.ORANGE);
+//                g2d.fillOval(p.x, p.y, radius, radius);
+//
+//                double d = Math.abs(-m * p.x + p.y - b)/Math.sqrt((-m)*(-m) + b*b);
+//                if (extreme == null || d > dist) {
+//                    extreme = p;
+//                    dist = d;
+//                }
+//            }
+//            assert extreme != null;
+//            g2d.setColor(Color.BLACK);
+//            g2d.fillOval(extreme.x, extreme.y, radius, radius);
+//            draw_line(leftmost, extreme); draw_line(extreme, rightmost);
 
         }
 
@@ -289,6 +389,23 @@ public class Frame extends JPanel implements ChangeListener, ActionListener {
         }
 
         if (e.getSource() == quick_solve) {
+            if (hull != null) hull.clear();
+
+            Point leftmost = new Point(10000, 0);
+            Point rightmost = new Point(0, 0);
+            for (Point p: points) {
+                if (p.x > rightmost.x)  rightmost = p;
+                if (p.x < leftmost.x)   leftmost = p;
+            }
+//
+//            ArrayList<ArrayList<Point>> split_points = QuickHull.split_points(points, leftmost, rightmost);
+//            QuickHull.convex_hull(split_points.get(0), leftmost, rightmost, 0);
+//
+//            hull = QuickHull.hull;
+//            hull.add(0, leftmost);
+//            hull.add(rightmost);
+//            hull.add(hull.get(0));
+
             should_animate_qh = true;
             should_animate_jm = false;
             repaint();
